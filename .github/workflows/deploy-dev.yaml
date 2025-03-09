@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  deploy-DEV:
+  deploy-dev:
     runs-on: [self-hosted, runner-dev]
 
     steps:
