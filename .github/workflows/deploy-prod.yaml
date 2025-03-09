@@ -1,0 +1,35 @@
+name: Deploy Prod Environment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-prod:
+    runs-on: [self-hosted, runner-prod]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_AUTOMATION_KEY_PROD }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ vars.PI_PROD001 }} >> ~/.ssh/known_hosts
+
+      - name: Deploy via SSH
+        run: |
+          scp -i ~/.ssh/deploy_key ./docker-compose.yaml ${{ vars.SSH_USER }}@${{ vars.PI_PROD001 }}:~/homelab-jenkins-agent/
+          scp -i ~/.ssh/deploy_key ./.env.prod ${{ vars.SSH_USER }}@${{ vars.PI_PROD001 }}:~/homelab-jenkins-agent/
+          ssh -i ~/.ssh/deploy_key ${{ vars.SSH_USER }}@${{ vars.PI_PROD001 }} << 'EOF'
+            cd ~/homelab-jenkins-agent
+            export JENKINS_URL=${JENKINS_URL_PROD}
+            export JENKINS_AGENT_NAME=${JENKINS_AGENT_NAME_PROD}
+            export JENKINS_SECRET=${JENKINS_SECRET_PROD}
+            sudo docker compose --env-file .env.prod up -d
+          EOF
+
+      - name: Cleanup SSH key
+        run: rm -f ~/.ssh/deploy_key

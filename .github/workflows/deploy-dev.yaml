@@ -1,0 +1,35 @@
+name: Deploy Dev Environment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-DEV:
+    runs-on: [self-hosted, runner-dev]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_AUTOMATION_KEY_DEV }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ vars.PI_DEV001 }} >> ~/.ssh/known_hosts
+
+      - name: Deploy via SSH
+        run: |
+          scp -i ~/.ssh/deploy_key ./docker-compose.yaml ${{ vars.SSH_USER }}@${{ vars.PI_DEV001 }}:~/homelab-jenkins-agent/
+          scp -i ~/.ssh/deploy_key ./.env.dev ${{ vars.SSH_USER }}@${{ vars.PI_DEV001 }}:~/homelab-jenkins-agent/
+          ssh -i ~/.ssh/deploy_key ${{ vars.SSH_USER }}@${{ vars.PI_DEV001 }} << 'EOF'
+            cd ~/homelab-jenkins-agent
+            export JENKINS_URL=${JENKINS_URL_DEV}
+            export JENKINS_AGENT_NAME=${JENKINS_AGENT_NAME_DEV}
+            export JENKINS_SECRET=${JENKINS_SECRET_DEV}
+            sudo docker compose --env-file .env.dev up -d
+          EOF
+
+      - name: Cleanup SSH key
+        run: rm -f ~/.ssh/deploy_key

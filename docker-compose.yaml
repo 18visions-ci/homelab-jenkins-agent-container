@@ -1,0 +1,22 @@
+services:
+  jenkins-agent:
+    image: jenkins/inbound-agent:latest
+    container_name: jenkins-agent
+    restart: always
+    environment:
+      - JENKINS_URL=${JENKINS_URL}
+      - JENKINS_AGENT_NAME=${JENKINS_AGENT_NAME}
+      - JENKINS_SECRET=${JENKINS_SECRET}
+      - JENKINS_WEB_SOCKET=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # Allows agent to start sibling containers
+      - jenkins_agent_data:/home/jenkins/agent     # Persist agent workspace
+    networks:
+      - jenkins
+
+volumes:
+  jenkins_agent_data:
+
+networks:
+  jenkins:
+    external: true
